@@ -1,6 +1,6 @@
 # wecom-skills
 
-企业微信本地聊天数据提取与分析工具集，包含两个互补的 WorkBuddy Skill。
+企业微信本地聊天数据提取与分析工具集，包含两个互补的 Skill。支持 [WorkBuddy](https://www.codebuddy.cn/)、[Codex](https://openai.com/index/introducing-codex/)、[Claude Code](https://claude.ai/code) 等支持 Skill 机制的 AI Agent 安装使用。
 
 ## Skill 列表
 
@@ -18,18 +18,18 @@
  │
  ▼
 wecom-chat-extractor (增强层)
- │  ├── wecom_pro.py        统一 CLI 入口
- │  ├── key_memory_scan.py  Frida 内存扫描（密钥捕获 fallback）
+ │  ├── wecom_pro.py         统一 CLI 入口
+ │  ├── key_memory_scan.py   Frida 内存扫描（密钥捕获 fallback）
  │  ├── structured_export.py 结构化 Markdown 导出
- │  └── html_report.py      HTML 分析报告
+ │  └── html_report.py       HTML 分析报告
  │
  ▼ 调用
  │
 yichen-wecom-local-vault (基础层)
-    ├── vault_cli.py        解密/查询/导出
+    ├── vault_cli.py         解密/查询/导出
     ├── capture_key_macos.py 标准 Frida hooks 密钥捕获
-    ├── wecom_crypto.py     wxSQLite3 AES-128 解密
-    └── wecom_common.py     数据库发现/密钥管理
+    ├── wecom_crypto.py      wxSQLite3 AES-128 解密
+    └── wecom_common.py      数据库发现/密钥管理
 ```
 
 ## 安装
@@ -39,51 +39,89 @@ yichen-wecom-local-vault (基础层)
 - macOS（Apple Silicon 或 Intel）
 - 企业微信 5.x 已安装
 - Python 3.10+
-- [WorkBuddy](https://www.codebuddy.cn/) 已安装（用于 Skill 加载）
 
-### 一键安装
+### 安装到不同 Agent
+
+本 Skill 遵循通用的 Skill 目录结构（`SKILL.md` + `scripts/` + `references/`），可安装到任何支持该机制的 AI Agent：
+
+#### WorkBuddy
 
 ```bash
-# 1. 克隆仓库
 git clone https://github.com/Young1108/wecom-skills.git /tmp/wecom-skills
-
-# 2. 复制 skill 到 WorkBuddy skills 目录
 mkdir -p ~/.workbuddy/skills
 cp -r /tmp/wecom-skills/wecom-chat-extractor ~/.workbuddy/skills/
 cp -r /tmp/wecom-skills/yichen-wecom-local-vault ~/.workbuddy/skills/
+```
 
-# 3. 安装 Python 依赖（在隔离 venv 中）
+#### Codex (OpenAI)
+
+```bash
+git clone https://github.com/Young1108/wecom-skills.git /tmp/wecom-skills
+mkdir -p ~/.codex/skills
+cp -r /tmp/wecom-skills/wecom-chat-extractor ~/.codex/skills/
+cp -r /tmp/wecom-skills/yichen-wecom-local-vault ~/.codex/skills/
+```
+
+#### Claude Code
+
+```bash
+git clone https://github.com/Young1108/wecom-skills.git /tmp/wecom-skills
+mkdir -p ~/.claude/skills
+cp -r /tmp/wecom-skills/wecom-chat-extractor ~/.claude/skills/
+cp -r /tmp/wecom-skills/yichen-wecom-local-vault ~/.claude/skills/
+```
+
+#### 其他 Agent
+
+将两个 skill 目录复制到你的 Agent 对应的 skills 目录即可。Skill 通过 `SKILL.md` 中的 `name` 和 `description` 字段被 Agent 识别和加载。
+
+### 安装 Python 依赖
+
+```bash
 pip install pycryptodome frida
+```
+
+> 建议在隔离 venv 中安装，避免污染系统 Python 环境。
+
+### 验证安装
+
+```bash
+SKILL_DIR=<你的 skills 目录>/wecom-chat-extractor
+python3 "$SKILL_DIR/scripts/wecom_pro.py" --help
+python3 "$SKILL_DIR/scripts/wecom_pro.py" status
 ```
 
 ## 使用
 
-### 快速开始
+### 在 AI Agent 中使用
+
+安装到 skills 目录后，在对话中直接说：
+
+> 用 wecom-chat-extractor 解析 XXX 群的聊天记录
+
+Agent 会自动识别 Skill、加载工作流、执行全流程。
+
+### 命令行直接使用
+
+也可以脱离 Agent，直接用命令行：
 
 ```bash
+# 设置路径（替换为你的 skills 目录）
 SKILL_DIR=~/.workbuddy/skills/wecom-chat-extractor
+# 或 Codex:  SKILL_DIR=~/.codex/skills/wecom-chat-extractor
+# 或 Claude: SKILL_DIR=~/.claude/skills/wecom-chat-extractor
+
+# 首次使用：捕获密钥 → 解密 → 分析
+python3 "$SKILL_DIR/scripts/wecom_pro.py" capture-key
+python3 "$SKILL_DIR/scripts/wecom_pro.py" decrypt
 python3 "$SKILL_DIR/scripts/wecom_pro.py" analyze "群聊名称" --output-dir ~/output
 ```
 
-### 完整流程
-
-首次使用需要先捕获密钥和解密数据库：
+后续使用（已有密钥和快照）只需最后一步：
 
 ```bash
-# 1. 捕获解密密钥（企业微信必须运行中）
-python3 "$SKILL_DIR/scripts/wecom_pro.py" capture-key
-
-# 2. 解密数据库
-python3 "$SKILL_DIR/scripts/wecom_pro.py" decrypt
-
-# 3. 查找群聊
-python3 "$SKILL_DIR/scripts/wecom_pro.py" sessions --query "群名"
-
-# 4. 一键分析（生成 JSON + 结构化 MD + HTML 报告）
 python3 "$SKILL_DIR/scripts/wecom_pro.py" analyze "群聊名称" --output-dir ~/output
 ```
-
-后续使用（已有密钥和快照）只需执行步骤 3-4。
 
 ### 所有命令
 
